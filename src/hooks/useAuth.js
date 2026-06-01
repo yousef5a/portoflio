@@ -12,8 +12,8 @@ export function useAuth() {
 
   const login = (username, password) => {
     if (
-      username === import.meta.env.VITE_ADMIN_USER &&
-      password === import.meta.env.VITE_ADMIN_PASS
+      username === "mohamedesam" &&
+      password === "mohamed50esam50"
     ) {
       sessionStorage.setItem("admin_authenticated", "true");
       setIsAdmin(true);
