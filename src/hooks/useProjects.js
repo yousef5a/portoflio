@@ -1,77 +1,101 @@
 import { useState, useEffect } from "react";
+import { collection, query, orderBy, limit, startAfter, getDocs, doc, setDoc, updateDoc, deleteDoc } from "firebase/firestore";
+import { db } from "../lib/firebase";
 import { initialProjects } from "../data/initialProjects";
-
-// Safely save to localStorage, showing a clear error if quota is exceeded
-const safeSetProjects = (data) => {
-  try {
-    localStorage.setItem("portfolio_projects", JSON.stringify(data));
-    return true;
-  } catch (e) {
-    if (e.name === "QuotaExceededError" || e.code === 22) {
-      alert(
-        "⚠️ Storage full!\n\n" +
-        "Your browser's local storage is full. This usually happens when project images are too large.\n\n" +
-        "Tips:\n" +
-        "• Use smaller images (images are auto-compressed to 800px)\n" +
-        "• Delete old projects you no longer need\n" +
-        "• Clear browser cache and try again"
-      );
-    } else {
-      console.error("Failed to save projects:", e);
-    }
-    return false;
-  }
-};
-
 
 export function useProjects() {
   const [projects, setProjects] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [lastVisible, setLastVisible] = useState(null);
+  const [hasMore, setHasMore] = useState(true);
+
+  const fetchProjects = async (initial = true) => {
+    try {
+      const baseQuery = query(
+        collection(db, "projects"),
+        orderBy("title"),
+        limit(10)
+      );
+      const q = initial ? baseQuery : query(
+        collection(db, "projects"),
+        orderBy("title"),
+        startAfter(lastVisible),
+        limit(10)
+      );
+      const snapshot = await getDocs(q);
+      if (snapshot.empty) {
+        if (initial) {
+          setProjects(initialProjects);
+        }
+        setHasMore(false);
+        setLoading(false);
+        return;
+      }
+      const fetched = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setProjects(prev => (initial ? fetched : [...prev, ...fetched]));
+      setLastVisible(snapshot.docs[snapshot.docs.length - 1]);
+      setHasMore(snapshot.docs.length === 10);
+      setLoading(false);
+    } catch (error) {
+      console.error("Error fetching projects from Firestore:", error);
+      setProjects(initialProjects);
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const stored = localStorage.getItem("portfolio_projects");
-    if (stored) {
-      try {
-        setProjects(JSON.parse(stored));
-      } catch (e) {
-        console.error("Failed to parse stored projects", e);
-        setProjects(initialProjects);
-      }
-    } else {
-      setProjects(initialProjects);
-      safeSetProjects(initialProjects);
-    }
+    fetchProjects();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const addProject = (newProject) => {
-    const updated = [
-      ...projects,
-      {
-        id: Date.now().toString(),
+  const addProject = async (newProject) => {
+    try {
+      const projectId = Date.now().toString(); // Or let Firestore generate it with addDoc
+      const projectRef = doc(db, "projects", projectId);
+      await setDoc(projectRef, {
         ...newProject,
         screenshots: newProject.screenshots || [],
-      },
-    ];
-    const saved = safeSetProjects(updated);
-    if (saved) {
-      setProjects(updated);
+      });
+      // Optimistic UI: prepend the new project locally
+      setProjects(prev => [{ id: projectId, ...newProject, screenshots: newProject.screenshots || [] }, ...prev]);
       return { success: true };
+    } catch (error) {
+      console.error("Error adding project:", error);
+      return { success: false, message: "فشل حفظ المشروع في قاعدة البيانات." };
     }
-    return { success: false, message: "فشل حفظ المشروع في ذاكرة التخزين المحلية." };
   };
 
-  const deleteProject = (id) => {
-    const updated = projects.filter((p) => p.id !== id);
-    setProjects(updated);
-    safeSetProjects(updated);
+  const deleteProject = async (id) => {
+    try {
+      const projectRef = doc(db, "projects", id);
+      await deleteDoc(projectRef);
+      // Optimistic UI: remove locally
+      setProjects(prev => prev.filter(p => p.id !== id));
+      return { success: true };
+    } catch (error) {
+      console.error("Error deleting project:", error);
+      return { success: false, message: error.message };
+    }
   };
 
-  const editProject = (id, updatedData) => {
-    const updated = projects.map((p) =>
-      p.id === id ? { ...p, ...updatedData } : p
-    );
-    const saved = safeSetProjects(updated);
-    if (saved) setProjects(updated);
+  const editProject = async (id, updatedData) => {
+    try {
+      const projectRef = doc(db, "projects", id);
+      await updateDoc(projectRef, updatedData);
+      // Optimistic UI: update locally
+      setProjects(prev => prev.map(p => (p.id === id ? { ...p, ...updatedData } : p)));
+      return { success: true };
+    } catch (error) {
+      console.error("Error editing project:", error);
+      return { success: false, message: error.message };
+    }
   };
 
-  return { projects, addProject, deleteProject, editProject };
+  const loadMore = () => {
+    if (hasMore && !loading) {
+      fetchProjects(false);
+    }
+  };
+
+  return { projects, addProject, deleteProject, editProject, loading, loadMore, hasMore };
 }

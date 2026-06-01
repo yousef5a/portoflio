@@ -1,22 +1,24 @@
 import { useState } from "react";
-import { useProjects } from "../hooks/useProjects";
+import { useProjects } from "../context/ProjectsContext";
 import ProjectCard from "./ProjectCard";
 import AddProjectModal from "./AddProjectModal";
 import ImageGalleryModal from "./ImageGalleryModal";
 import ProjectDetailsModal from "./ProjectDetailsModal";
 
 import { FaPlus, FaSearch } from "react-icons/fa";
+import Spinner from "./Spinner";
 
 export default function Projects({ isAdmin }) {
-  const { projects, addProject } = useProjects();
+  const { projects, addProject, loading } = useProjects();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTech, setSelectedTech] = useState("All");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [selectedDetailsProject, setSelectedDetailsProject] = useState(null);
   const [galleryState, setGalleryState] = useState({ isOpen: false, images: [], index: 0 });
 
-  const handleAddProject = (projectData) => {
-    const result = addProject(projectData);
+
+  const handleAddProject = async (projectData) => {
+    const result = await addProject(projectData);
     if (result && !result.success) {
       alert(result.message);
       return;
@@ -115,6 +117,7 @@ export default function Projects({ isAdmin }) {
           </div>
         )}
       </div>
+       {loading && <Spinner />}
 
       {/* Add Project Modal */}
       <AddProjectModal

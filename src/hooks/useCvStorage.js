@@ -1,49 +1,37 @@
-/**
- * useCvStorage — stores the CV PDF file in IndexedDB (no 5MB localStorage limit)
- * Provides: uploadCv(file) → saves blob, getCvUrl() → returns object URL, clearCv()
- */
+import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
+import { storage } from "../lib/firebase";
 
-const DB_NAME = "portfolio_cv_db";
-const STORE_NAME = "cv_store";
-const CV_KEY = "cv_file";
+const CV_PATH = "cv/Mohamed_Esam_CV.pdf";
 
-function openDB() {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, 1);
-    req.onupgradeneeded = (e) => {
-      e.target.result.createObjectStore(STORE_NAME);
-    };
-    req.onsuccess = (e) => resolve(e.target.result);
-    req.onerror = (e) => reject(e.target.error);
-  });
+export async function saveCvToStorage(file) {
+  try {
+    const storageRef = ref(storage, CV_PATH);
+    await uploadBytes(storageRef, file);
+    return true;
+  } catch (error) {
+    console.error("Error uploading CV:", error);
+    throw error;
+  }
 }
 
-export async function saveCvToIndexedDB(file) {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_NAME, "readwrite");
-    tx.objectStore(STORE_NAME).put(file, CV_KEY);
-    tx.oncomplete = () => resolve(true);
-    tx.onerror = (e) => reject(e.target.error);
-  });
+export async function getCvFromStorage() {
+  try {
+    const storageRef = ref(storage, CV_PATH);
+    const url = await getDownloadURL(storageRef);
+    return url;
+  } catch (error) {
+    // Return null if not found
+    return null;
+  }
 }
 
-export async function getCvFromIndexedDB() {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_NAME, "readonly");
-    const req = tx.objectStore(STORE_NAME).get(CV_KEY);
-    req.onsuccess = (e) => resolve(e.target.result || null);
-    req.onerror = (e) => reject(e.target.error);
-  });
-}
-
-export async function clearCvFromIndexedDB() {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_NAME, "readwrite");
-    tx.objectStore(STORE_NAME).delete(CV_KEY);
-    tx.oncomplete = () => resolve(true);
-    tx.onerror = (e) => reject(e.target.error);
-  });
+export async function clearCvFromStorage() {
+  try {
+    const storageRef = ref(storage, CV_PATH);
+    await deleteObject(storageRef);
+    return true;
+  } catch (error) {
+    console.error("Error deleting CV:", error);
+    throw error;
+  }
 }

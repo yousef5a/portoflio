@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import { usePortfolioSettings } from "../hooks/usePortfolioSettings";
-import { useProjects } from "../hooks/useProjects";
-import { useSkills } from "../hooks/useSkills";
+import { useProjects } from "../context/ProjectsContext";
+import { useSkills } from "../context/SkillsContext";
 import AddProjectModal from "./AddProjectModal";
 import { FaEdit, FaTrash, FaPlus, FaSave, FaTimes, FaCog, FaChartBar, FaTasks, FaUpload } from "react-icons/fa";
-import { saveCvToIndexedDB } from "../hooks/useCvStorage";
+import { saveCvToStorage } from "../hooks/useCvStorage";
 
 export default function AdminDashboard({ isAdmin, onLogout }) {
   const { settings, updateSettings } = usePortfolioSettings();
@@ -51,23 +51,32 @@ export default function AdminDashboard({ isAdmin, onLogout }) {
   };
 
   // Save skill (adds or edits)
-  const handleSkillSubmit = (e) => {
+  const handleSkillSubmit = async (e) => {
     e.preventDefault();
     if (!skillName) return;
 
+    let result;
     if (editingSkillId) {
-      editSkill(editingSkillId, {
+      result = await editSkill(editingSkillId, {
         name: skillName,
         level: Number(skillLevel),
         category: skillCategory,
       });
+      if (result && !result.success) {
+        alert("فشل تعديل المهارة: " + result.message);
+        return;
+      }
       setEditingSkillId(null);
     } else {
-      addSkill({
+      result = await addSkill({
         name: skillName,
         level: Number(skillLevel),
         category: skillCategory,
       });
+      if (result && !result.success) {
+        alert("فشل إضافة المهارة: " + result.message);
+        return;
+      }
     }
 
     // Reset Skill Form
@@ -96,7 +105,7 @@ export default function AdminDashboard({ isAdmin, onLogout }) {
     e.preventDefault();
     if (cvFile) {
       try {
-        await saveCvToIndexedDB(cvFile);
+        await saveCvToStorage(cvFile);
         window.dispatchEvent(new Event("cvUpdated"));
         alert("CV saved successfully!");
       } catch (err) {
@@ -110,8 +119,8 @@ export default function AdminDashboard({ isAdmin, onLogout }) {
     });
   };
 
-  const handleAddProject = (projectData) => {
-    const result = addProject(projectData);
+  const handleAddProject = async (projectData) => {
+    const result = await addProject(projectData);
     if (result && !result.success) {
       alert(result.message);
       return;
@@ -329,7 +338,14 @@ export default function AdminDashboard({ isAdmin, onLogout }) {
                               <FaEdit size={12} />
                             </button>
                             <button
-                              onClick={() => deleteProject(project.id)}
+                              onClick={async () => {
+                                if (confirm("Are you sure you want to delete this project?")) {
+                                  const result = await deleteProject(project.id);
+                                  if (result && !result.success) {
+                                    alert("فشل حذف المشروع: " + result.message);
+                                  }
+                                }
+                              }}
                               className="p-2 rounded-lg bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white transition-all"
                               aria-label="Delete project"
                             >
@@ -464,7 +480,14 @@ export default function AdminDashboard({ isAdmin, onLogout }) {
                               <FaEdit size={12} />
                             </button>
                             <button
-                              onClick={() => deleteSkill(skill.id)}
+                              onClick={async () => {
+                                if (confirm("Are you sure you want to delete this skill?")) {
+                                  const result = await deleteSkill(skill.id);
+                                  if (result && !result.success) {
+                                    alert("فشل حذف المهارة: " + result.message);
+                                  }
+                                }
+                              }}
                               className="p-2 rounded-lg bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white transition-all"
                               aria-label="Delete skill"
                             >
@@ -488,13 +511,10 @@ export default function AdminDashboard({ isAdmin, onLogout }) {
         onClose={() => setIsProjectModalOpen(false)}
         projectToEdit={editingProject}
         onAdd={handleAddProject}
-        onEdit={(id, data) => {
-          // Check if editProject exists, then execute it
-          if (editProject) {
-            editProject(id, data);
-          } else {
-            // Fallback: If we editing, let's trigger our save edit handler
-            // Let's make sure useProjects has it.
+        onEdit={async (id, data) => {
+          const result = await editProject(id, data);
+          if (result && result.success === false) {
+            alert("فشل تعديل المشروع: " + (result.message || ""));
           }
         }}
       />

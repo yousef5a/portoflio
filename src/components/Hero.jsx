@@ -2,7 +2,7 @@ import { motion } from "framer-motion";
 import { FaDownload, FaLinkedin, FaGithub, FaEnvelope, FaWhatsapp } from "react-icons/fa";
 import { usePortfolioSettings } from "../hooks/usePortfolioSettings";
 import { useState, useEffect } from "react";
-import { getCvFromIndexedDB } from "../hooks/useCvStorage";
+import { getCvFromStorage } from "../hooks/useCvStorage";
 
 export default function Hero() {
   const { settings } = usePortfolioSettings();
@@ -12,10 +12,9 @@ export default function Hero() {
     // If there is an uploaded CV in IndexedDB, use it instead of settings.cvUrl
     const loadCv = async () => {
       try {
-        const file = await getCvFromIndexedDB();
-        if (file) {
-          const objectUrl = URL.createObjectURL(file);
-          setCvDownloadUrl(objectUrl);
+        const url = await getCvFromStorage();
+        if (url) {
+          setCvDownloadUrl(url);
         } else {
           setCvDownloadUrl(settings.cvUrl);
         }

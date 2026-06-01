@@ -1,58 +1,99 @@
 import { useState, useEffect } from "react";
-
-const initialSkills = [
-  { id: "1", name: "Power BI", level: 90, category: "Visualization" },
-  { id: "2", name: "Excel", level: 92, category: "Analysis" },
-  { id: "3", name: "SQL", level: 88, category: "Database" },
-  { id: "4", name: "Python (Pandas/Matplotlib)", level: 70, category: "Programming" },
-  { id: "5", name: "Data Cleaning", level: 90, category: "Data Management" },
-  { id: "6", name: "Statistics", level: 80, category: "Analysis" },
-];
+import { collection, query, orderBy, limit, startAfter, getDocs, doc, setDoc, updateDoc, deleteDoc } from "firebase/firestore";
+import { db } from "../lib/firebase";
 
 export function useSkills() {
   const [skills, setSkills] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [lastVisible, setLastVisible] = useState(null);
+  const [hasMore, setHasMore] = useState(true);
+
+  const fetchSkills = async (initial = true) => {
+    try {
+      const baseQuery = query(
+        collection(db, "skills"),
+        orderBy("name"),
+        limit(10)
+      );
+      const q = initial ? baseQuery : query(
+        collection(db, "skills"),
+        orderBy("name"),
+        startAfter(lastVisible),
+        limit(10)
+      );
+      const snapshot = await getDocs(q);
+      if (snapshot.empty) {
+        setHasMore(false);
+        setLoading(false);
+        return;
+      }
+      const fetched = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      setSkills(prev => (initial ? fetched : [...prev, ...fetched]));
+      setLastVisible(snapshot.docs[snapshot.docs.length - 1]);
+      setHasMore(snapshot.docs.length === 10);
+      setLoading(false);
+    } catch (error) {
+      console.error("Error fetching skills:", error);
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const stored = localStorage.getItem("portfolio_skills");
-    if (stored) {
-      try {
-        setSkills(JSON.parse(stored));
-      } catch (e) {
-        console.error("Failed to parse stored skills", e);
-        setSkills(initialSkills);
-      }
-    } else {
-      setSkills(initialSkills);
-      localStorage.setItem("portfolio_skills", JSON.stringify(initialSkills));
-    }
+    fetchSkills();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const addSkill = (newSkill) => {
-    const updated = [
-      ...skills,
-      {
-        id: Date.now().toString(),
+  const addSkill = async (newSkill) => {
+    try {
+      const skillId = Date.now().toString();
+      const skillRef = doc(db, "skills", skillId);
+      await setDoc(skillRef, {
         ...newSkill,
-        level: Number(newSkill.level),
-      },
-    ];
-    setSkills(updated);
-    localStorage.setItem("portfolio_skills", JSON.stringify(updated));
+        level: Number(newSkill.level)
+      });
+      // Optimistic UI
+      setSkills(prev => [{ id: skillId, ...newSkill, level: Number(newSkill.level) }, ...prev]);
+      return { success: true };
+    } catch (error) {
+      console.error("Error adding skill:", error);
+      return { success: false, message: error.message };
+    }
   };
 
-  const editSkill = (id, updatedSkill) => {
-    const updated = skills.map((s) =>
-      s.id === id ? { ...s, ...updatedSkill, level: Number(updatedSkill.level) } : s
-    );
-    setSkills(updated);
-    localStorage.setItem("portfolio_skills", JSON.stringify(updated));
+  const editSkill = async (id, updatedSkill) => {
+    try {
+      const skillRef = doc(db, "skills", id);
+      await updateDoc(skillRef, {
+        ...updatedSkill,
+        level: Number(updatedSkill.level)
+      });
+      // Optimistic UI
+      setSkills(prev => prev.map(s => (s.id === id ? { ...s, ...updatedSkill, level: Number(updatedSkill.level) } : s)));
+      return { success: true };
+    } catch (error) {
+      console.error("Error editing skill:", error);
+      return { success: false, message: error.message };
+    }
   };
 
-  const deleteSkill = (id) => {
-    const updated = skills.filter((s) => s.id !== id);
-    setSkills(updated);
-    localStorage.setItem("portfolio_skills", JSON.stringify(updated));
+  const deleteSkill = async (id) => {
+    try {
+      const skillRef = doc(db, "skills", id);
+      await deleteDoc(skillRef);
+      // Optimistic UI
+      setSkills(prev => prev.filter(s => s.id !== id));
+      return { success: true };
+    } catch (error) {
+      console.error("Error deleting skill:", error);
+      return { success: false, message: error.message };
+    }
   };
 
-  return { skills, addSkill, editSkill, deleteSkill };
+  const loadMore = () => {
+    if (hasMore && !loading) {
+      fetchSkills(false);
+    }
+  };
+
+  return { skills, addSkill, editSkill, deleteSkill, loading, loadMore, hasMore };
 }
