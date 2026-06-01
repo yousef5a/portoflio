@@ -1,6 +1,4 @@
-import { useState, useEffect } from "react";
-
-const STORAGE_KEY = "portfolioSettings";
+import { useState } from "react";
 
 const defaultSettings = {
   name: "Mohamed Esam",
@@ -12,25 +10,8 @@ const defaultSettings = {
 export function usePortfolioSettings() {
   const [settings, setSettings] = useState(defaultSettings);
 
-  // Load from localStorage on mount
-  useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      try {
-        setSettings(JSON.parse(stored));
-      } catch (e) {
-        console.error("Failed to parse portfolio settings from storage", e);
-      }
-    }
-  }, []);
-
-  // Persist changes
   const updateSettings = (updates) => {
-    setSettings((prev) => {
-      const newSettings = { ...prev, ...updates };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(newSettings));
-      return newSettings;
-    });
+    setSettings((prev) => ({ ...prev, ...updates }));
   };
 
   return { settings, updateSettings };
