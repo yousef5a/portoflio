@@ -11,24 +11,27 @@ export async function saveCvToStorage(file) {
     const { error: uploadError } = await supabase.storage
       .from("portfolio")
       .upload(CV_PATH, file, { upsert: true });
-    
+
     if (uploadError) throw uploadError;
 
     const { data: publicUrlData } = supabase.storage
       .from("portfolio")
       .getPublicUrl(CV_PATH);
-    
+
     const url = publicUrlData.publicUrl;
-    
+
     // Save URL to Supabase DB settings
-    const { error: dbError } = await supabase.from("settings").update({
-      cvUrl: url,
-      cvPath: CV_PATH,
-      cvUpdatedAt: new Date().toISOString(),
-    }).eq("id", "portfolio");
+    const { error: dbError } = await supabase
+      .from("settings")
+      .update({
+        cv_url: url,
+        cv_path: CV_PATH,
+        cv_updated_at: new Date().toISOString(),
+      })
+      .eq("id", "portfolio");
 
     if (dbError) throw dbError;
-    
+
     return true;
   } catch (error) {
     console.error("Error uploading CV:", error);
@@ -50,14 +53,17 @@ export async function clearCvFromStorage() {
     const { error: deleteError } = await supabase.storage
       .from("portfolio")
       .remove([CV_PATH]);
-    
+
     if (deleteError) throw deleteError;
 
-    const { error: dbError } = await supabase.from("settings").update({
-      cvUrl: "/Mohamed-Esam-Khodary-CV.pdf",
-      cvPath: null,
-      cvUpdatedAt: new Date().toISOString(),
-    }).eq("id", "portfolio");
+    const { error: dbError } = await supabase
+      .from("settings")
+      .update({
+        cv_url: "/Mohamed-Esam-Khodary-CV.pdf",
+        cv_path: null,
+        cv_updated_at: new Date().toISOString(),
+      })
+      .eq("id", "portfolio");
 
     if (dbError) throw dbError;
 

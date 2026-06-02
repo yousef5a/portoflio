@@ -8,25 +8,61 @@ const PROJECTS_QUERY_KEY = ["projects"];
 const sortProjects = (data) =>
   [...data].sort((a, b) => (a.title || "").localeCompare(b.title || ""));
 
+// Field mapping: frontend names ↔ database names
+const frontendToDb = (data) => ({
+  ...data,
+  description: data.desc,
+  tech_stack: data.stack,
+  github_url: data.github,
+  live_url: data.link,
+  cover_image: data.image,
+  desc: undefined,
+  stack: undefined,
+  github: undefined,
+  link: undefined,
+  image: undefined,
+});
+
+const dbToFrontend = (data) => ({
+  ...data,
+  desc: data.description,
+  stack: data.tech_stack,
+  github: data.github_url,
+  link: data.live_url,
+  image: data.cover_image,
+  description: undefined,
+  tech_stack: undefined,
+  github_url: undefined,
+  live_url: undefined,
+  cover_image: undefined,
+});
+
 export function useProjects() {
   const handleSyncError = useCallback((error) => {
     console.error("Projects sync error:", error);
     toast.error("Failed to sync projects");
   }, []);
-  const { data: projects = [], isLoading: loading } = useRealtimeCollection(
+  const { data: projectsRaw = [], isLoading: loading } = useRealtimeCollection(
     "projects",
     PROJECTS_QUERY_KEY,
-    sortProjects,
-    handleSyncError
+    (data) => sortProjects(data.map(dbToFrontend)),
+    handleSyncError,
   );
+
+  const projects = projectsRaw;
 
   // Mutations
   const { mutateAsync: addProject } = useMutation({
     mutationFn: async (newProject) => {
-      const { data, error } = await supabase.from("projects").insert({
+      const dbProject = frontendToDb({
         ...newProject,
         screenshots: newProject.screenshots || [],
-      }).select().single();
+      });
+      const { data, error } = await supabase
+        .from("projects")
+        .insert(dbProject)
+        .select()
+        .single();
       if (error) throw error;
       return data.id;
     },
@@ -34,19 +70,23 @@ export function useProjects() {
     onError: (error) => {
       console.error("Error adding project:", error);
       toast.error("Failed to add project.");
-    }
+    },
   });
 
   const { mutateAsync: editProjectMutation } = useMutation({
     mutationFn: async ({ id, updatedData }) => {
-      const { error } = await supabase.from("projects").update(updatedData).eq("id", id);
+      const dbData = frontendToDb(updatedData);
+      const { error } = await supabase
+        .from("projects")
+        .update(dbData)
+        .eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => toast.success("Project updated successfully!"),
     onError: (error) => {
       console.error("Error editing project:", error);
       toast.error("Failed to update project.");
-    }
+    },
   });
 
   const { mutateAsync: deleteProject } = useMutation({
@@ -58,18 +98,18 @@ export function useProjects() {
     onError: (error) => {
       console.error("Error deleting project:", error);
       toast.error("Failed to delete project.");
-    }
+    },
   });
 
   const editProject = async (id, updatedData) => {
     return editProjectMutation({ id, updatedData });
   };
 
-  return { 
-    projects, 
-    addProject, 
-    deleteProject, 
-    editProject, 
-    loading 
+  return {
+    projects,
+    addProject,
+    deleteProject,
+    editProject,
+    loading,
   };
 }
