@@ -22,7 +22,14 @@ const frontendToDb = (data) => {
 };
 
 const dbToFrontend = (data) => {
-  const { description, tech_stack, github_url, live_url, cover_image, ...rest } = data;
+  const {
+    description,
+    tech_stack,
+    github_url,
+    live_url,
+    cover_image,
+    ...rest
+  } = data;
   return {
     ...rest,
     desc: description,
