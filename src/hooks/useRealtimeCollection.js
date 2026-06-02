@@ -1,7 +1,6 @@
 import { useEffect } from "react";
-import { collection, onSnapshot } from "firebase/firestore";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { db } from "../lib/firebase";
+import { supabase } from "../lib/supabase";
 
 const subscriptions = new Map();
 
@@ -13,19 +12,33 @@ export function useRealtimeCollection(collectionName, queryKey, mapAndSort, onEr
     let entry = subscriptions.get(cacheKey);
 
     if (!entry) {
-      const unsubscribe = onSnapshot(
-        collection(db, collectionName),
-        (snapshot) => {
-          const data = snapshot.docs.map((docSnap) => ({
-            id: docSnap.id,
-            ...docSnap.data(),
-          }));
+      // 1. Initial fetch
+      const fetchInitialData = async () => {
+        try {
+          const { data, error } = await supabase.from(collectionName).select('*');
+          if (error) throw error;
           queryClient.setQueryData(queryKey, mapAndSort ? mapAndSort(data) : data);
-        },
-        onError
-      );
+        } catch (error) {
+          if (onError) onError(error);
+        }
+      };
 
-      entry = { unsubscribe, refCount: 0 };
+      fetchInitialData();
+
+      // 2. Realtime subscription
+      const channel = supabase
+        .channel(`public:${collectionName}`)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: collectionName },
+          () => {
+            // Re-fetch on any change to ensure consistency
+            fetchInitialData();
+          }
+        )
+        .subscribe();
+
+      entry = { channel, refCount: 0 };
       subscriptions.set(cacheKey, entry);
     }
 
@@ -34,7 +47,7 @@ export function useRealtimeCollection(collectionName, queryKey, mapAndSort, onEr
     return () => {
       entry.refCount -= 1;
       if (entry.refCount <= 0) {
-        entry.unsubscribe();
+        supabase.removeChannel(entry.channel);
         subscriptions.delete(cacheKey);
       }
     };

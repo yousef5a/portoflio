@@ -1,7 +1,6 @@
 import { useCallback } from "react";
-import { doc, setDoc, updateDoc, deleteDoc } from "firebase/firestore";
 import { useMutation } from "@tanstack/react-query";
-import { db } from "../lib/firebase";
+import { supabase } from "../lib/supabase";
 import { useRealtimeCollection } from "./useRealtimeCollection";
 import toast from "react-hot-toast";
 
@@ -23,13 +22,12 @@ export function useSkills() {
   // Mutations
   const { mutateAsync: addSkill } = useMutation({
     mutationFn: async (newSkill) => {
-      const skillId = Date.now().toString();
-      const skillRef = doc(db, "skills", skillId);
-      await setDoc(skillRef, {
+      const { data, error } = await supabase.from("skills").insert({
         ...newSkill,
         level: Number(newSkill.level) || 0
-      });
-      return skillId;
+      }).select().single();
+      if (error) throw error;
+      return data.id;
     },
     onSuccess: () => toast.success("Skill added successfully!"),
     onError: (error) => {
@@ -40,11 +38,11 @@ export function useSkills() {
 
   const { mutateAsync: editSkillMutation } = useMutation({
     mutationFn: async ({ id, updatedSkill }) => {
-      const skillRef = doc(db, "skills", id);
-      await updateDoc(skillRef, {
+      const { error } = await supabase.from("skills").update({
         ...updatedSkill,
         level: Number(updatedSkill.level) || 0
-      });
+      }).eq("id", id);
+      if (error) throw error;
     },
     onSuccess: () => toast.success("Skill updated successfully!"),
     onError: (error) => {
@@ -55,8 +53,8 @@ export function useSkills() {
 
   const { mutateAsync: deleteSkill } = useMutation({
     mutationFn: async (id) => {
-      const skillRef = doc(db, "skills", id);
-      await deleteDoc(skillRef);
+      const { error } = await supabase.from("skills").delete().eq("id", id);
+      if (error) throw error;
     },
     onSuccess: () => toast.success("Skill deleted successfully!"),
     onError: (error) => {

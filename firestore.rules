@@ -4,7 +4,7 @@ service cloud.firestore {
   match /databases/{database}/documents {
     function ADMIN_UID_ALLOWLIST() {
       return [
-        "REPLACE_WITH_ADMIN_UID"
+        "Xeo42uq9vEg36udWuXzR0Xv56qt1"
       ];
     }
 

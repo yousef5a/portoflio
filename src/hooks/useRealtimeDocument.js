@@ -1,11 +1,10 @@
 import { useEffect } from "react";
-import { doc, onSnapshot } from "firebase/firestore";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { db } from "../lib/firebase";
+import { supabase } from "../lib/supabase";
 
 const subscriptions = new Map();
 
-export function useRealtimeDocument(pathSegments, queryKey, fallbackData, mergeData, onError) {
+export function useRealtimeDocument(tableName, recordId, queryKey, fallbackData, mergeData, onError) {
   const queryClient = useQueryClient();
   const cacheKey = JSON.stringify(queryKey);
 
@@ -13,18 +12,31 @@ export function useRealtimeDocument(pathSegments, queryKey, fallbackData, mergeD
     let entry = subscriptions.get(cacheKey);
 
     if (!entry) {
-      const unsubscribe = onSnapshot(
-        doc(db, ...pathSegments),
-        (docSnap) => {
-          const data = docSnap.exists()
-            ? mergeData(docSnap.data())
-            : fallbackData;
-          queryClient.setQueryData(queryKey, data);
-        },
-        onError
-      );
+      const fetchInitialData = async () => {
+        try {
+          const { data, error } = await supabase.from(tableName).select('*').eq('id', recordId).maybeSingle();
+          if (error) throw error;
+          const merged = data ? mergeData(data) : fallbackData;
+          queryClient.setQueryData(queryKey, merged);
+        } catch (error) {
+          if (onError) onError(error);
+        }
+      };
 
-      entry = { unsubscribe, refCount: 0 };
+      fetchInitialData();
+
+      const channel = supabase
+        .channel(`public:${tableName}:${recordId}`)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: tableName, filter: `id=eq.${recordId}` },
+          () => {
+            fetchInitialData();
+          }
+        )
+        .subscribe();
+
+      entry = { channel, refCount: 0 };
       subscriptions.set(cacheKey, entry);
     }
 
@@ -33,11 +45,11 @@ export function useRealtimeDocument(pathSegments, queryKey, fallbackData, mergeD
     return () => {
       entry.refCount -= 1;
       if (entry.refCount <= 0) {
-        entry.unsubscribe();
+        supabase.removeChannel(entry.channel);
         subscriptions.delete(cacheKey);
       }
     };
-  }, [cacheKey, fallbackData, mergeData, onError, pathSegments, queryClient, queryKey]);
+  }, [cacheKey, fallbackData, mergeData, onError, tableName, recordId, queryClient, queryKey]);
 
   return useQuery({
     queryKey,

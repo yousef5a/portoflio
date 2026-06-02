@@ -9,7 +9,7 @@ export default defineConfig({
       output: {
         manualChunks: {
           "vendor-react": ["react", "react-dom"],
-          "vendor-firebase": ["firebase/app", "firebase/firestore", "firebase/storage", "firebase/auth"],
+          "vendor-supabase": ["@supabase/supabase-js"],
           "vendor-ui": ["framer-motion", "react-icons"],
           "vendor-query": ["@tanstack/react-query", "react-hot-toast"],
         },

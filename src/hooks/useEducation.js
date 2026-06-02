@@ -1,7 +1,6 @@
 import { useCallback } from "react";
-import { doc, setDoc, updateDoc, deleteDoc } from "firebase/firestore";
 import { useMutation } from "@tanstack/react-query";
-import { db } from "../lib/firebase";
+import { supabase } from "../lib/supabase";
 import { useRealtimeCollection } from "./useRealtimeCollection";
 import toast from "react-hot-toast";
 
@@ -21,10 +20,9 @@ export function useEducation() {
 
   const { mutateAsync: addEducation } = useMutation({
     mutationFn: async (newEdu) => {
-      const eduId = Date.now().toString();
-      const eduRef = doc(db, "education", eduId);
-      await setDoc(eduRef, newEdu);
-      return eduId;
+      const { data, error } = await supabase.from("education").insert(newEdu).select().single();
+      if (error) throw error;
+      return data.id;
     },
     onSuccess: () => toast.success("Education added successfully!"),
     onError: (error) => {
@@ -35,8 +33,8 @@ export function useEducation() {
 
   const { mutateAsync: editEducation } = useMutation({
     mutationFn: async ({ id, updatedData }) => {
-      const eduRef = doc(db, "education", id);
-      await updateDoc(eduRef, updatedData);
+      const { error } = await supabase.from("education").update(updatedData).eq("id", id);
+      if (error) throw error;
     },
     onSuccess: () => toast.success("Education updated successfully!"),
     onError: (error) => {
@@ -47,8 +45,8 @@ export function useEducation() {
 
   const { mutateAsync: deleteEducation } = useMutation({
     mutationFn: async (id) => {
-      const eduRef = doc(db, "education", id);
-      await deleteDoc(eduRef);
+      const { error } = await supabase.from("education").delete().eq("id", id);
+      if (error) throw error;
     },
     onSuccess: () => toast.success("Education deleted successfully!"),
     onError: (error) => {

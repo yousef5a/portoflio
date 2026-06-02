@@ -1,7 +1,6 @@
 import { useCallback } from "react";
-import { doc, setDoc, updateDoc, deleteDoc } from "firebase/firestore";
 import { useMutation } from "@tanstack/react-query";
-import { db } from "../lib/firebase";
+import { supabase } from "../lib/supabase";
 import { useRealtimeCollection } from "./useRealtimeCollection";
 import toast from "react-hot-toast";
 
@@ -21,10 +20,9 @@ export function useExperience() {
 
   const { mutateAsync: addExperience } = useMutation({
     mutationFn: async (newExp) => {
-      const expId = Date.now().toString();
-      const expRef = doc(db, "experience", expId);
-      await setDoc(expRef, newExp);
-      return expId;
+      const { data, error } = await supabase.from("experience").insert(newExp).select().single();
+      if (error) throw error;
+      return data.id;
     },
     onSuccess: () => toast.success("Experience added successfully!"),
     onError: (error) => {
@@ -35,8 +33,8 @@ export function useExperience() {
 
   const { mutateAsync: editExperience } = useMutation({
     mutationFn: async ({ id, updatedData }) => {
-      const expRef = doc(db, "experience", id);
-      await updateDoc(expRef, updatedData);
+      const { error } = await supabase.from("experience").update(updatedData).eq("id", id);
+      if (error) throw error;
     },
     onSuccess: () => toast.success("Experience updated successfully!"),
     onError: (error) => {
@@ -47,8 +45,8 @@ export function useExperience() {
 
   const { mutateAsync: deleteExperience } = useMutation({
     mutationFn: async (id) => {
-      const expRef = doc(db, "experience", id);
-      await deleteDoc(expRef);
+      const { error } = await supabase.from("experience").delete().eq("id", id);
+      if (error) throw error;
     },
     onSuccess: () => toast.success("Experience deleted successfully!"),
     onError: (error) => {

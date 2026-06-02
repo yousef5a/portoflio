@@ -4,7 +4,7 @@ service firebase.storage {
   match /b/{bucket}/o {
     function ADMIN_UID_ALLOWLIST() {
       return [
-        "REPLACE_WITH_ADMIN_UID"
+        "Xeo42uq9vEg36udWuXzR0Xv56qt1"
       ];
     }
 

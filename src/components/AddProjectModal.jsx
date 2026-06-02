@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { FaTimes, FaPlus, FaSpinner, FaCloudUploadAlt, FaSave } from "react-icons/fa";
-import { ref, uploadString, getDownloadURL } from "firebase/storage";
-import { storage } from "../lib/firebase";
+import { supabase } from "../lib/supabase";
 
 // Compress image to max 800x600 JPEG at 70% quality to save localStorage space
 const compressImage = (file) =>
@@ -25,15 +24,16 @@ const compressImage = (file) =>
     img.src = url;
   });
 
+function dataURLtoBlob(dataurl) {
+  var arr = dataurl.split(','), mime = arr[0].match(/:(.*?);/)[1],
+      bstr = atob(arr[1]), n = bstr.length, u8arr = new Uint8Array(n);
+  while(n--){
+      u8arr[n] = bstr.charCodeAt(n);
+  }
+  return new Blob([u8arr], {type:mime});
+}
+
 const getUploadErrorMessage = (error) => {
-  if (error?.code === "storage/unauthorized") {
-    return "You do not have permission to upload project images. Confirm your admin UID is allowed in storage.rules.";
-  }
-
-  if (error?.code === "storage/bucket-not-found" || error?.code === "storage/unknown") {
-    return "Firebase Storage is not configured. Enable Storage in Firebase Console, then deploy storage.rules.";
-  }
-
   return error?.message || "Failed to upload images or save project.";
 };
 
@@ -100,16 +100,20 @@ export default function AddProjectModal({ isOpen, onClose, onAdd, onEdit, projec
     try {
       let finalImage = image;
       if (image && image.startsWith("data:image")) {
-        const imageRef = ref(storage, `projects/${Date.now()}_cover.jpg`);
-        await uploadString(imageRef, image, 'data_url');
-        finalImage = await getDownloadURL(imageRef);
+        const path = `projects/${Date.now()}_cover.jpg`;
+        const { error: upErr } = await supabase.storage.from("portfolio").upload(path, dataURLtoBlob(image), { upsert: true });
+        if (upErr) throw upErr;
+        const { data: urlData } = supabase.storage.from("portfolio").getPublicUrl(path);
+        finalImage = urlData.publicUrl;
       }
 
       const finalScreenshots = await Promise.all(screenshots.map(async (s, index) => {
         if (s && s.startsWith("data:image")) {
-          const sRef = ref(storage, `projects/${Date.now()}_screenshot_${index}.jpg`);
-          await uploadString(sRef, s, 'data_url');
-          return await getDownloadURL(sRef);
+          const path = `projects/${Date.now()}_screenshot_${index}.jpg`;
+          const { error: upErr } = await supabase.storage.from("portfolio").upload(path, dataURLtoBlob(s), { upsert: true });
+          if (upErr) throw upErr;
+          const { data: urlData } = supabase.storage.from("portfolio").getPublicUrl(path);
+          return urlData.publicUrl;
         }
         return s;
       }));

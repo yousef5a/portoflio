@@ -1,7 +1,6 @@
 import { useCallback } from "react";
-import { doc, setDoc, updateDoc, deleteDoc } from "firebase/firestore";
 import { useMutation } from "@tanstack/react-query";
-import { db } from "../lib/firebase";
+import { supabase } from "../lib/supabase";
 import { useRealtimeCollection } from "./useRealtimeCollection";
 import toast from "react-hot-toast";
 
@@ -24,13 +23,12 @@ export function useProjects() {
   // Mutations
   const { mutateAsync: addProject } = useMutation({
     mutationFn: async (newProject) => {
-      const projectId = Date.now().toString();
-      const projectRef = doc(db, "projects", projectId);
-      await setDoc(projectRef, {
+      const { data, error } = await supabase.from("projects").insert({
         ...newProject,
         screenshots: newProject.screenshots || [],
-      });
-      return projectId;
+      }).select().single();
+      if (error) throw error;
+      return data.id;
     },
     onSuccess: () => toast.success("Project added successfully!"),
     onError: (error) => {
@@ -41,8 +39,8 @@ export function useProjects() {
 
   const { mutateAsync: editProjectMutation } = useMutation({
     mutationFn: async ({ id, updatedData }) => {
-      const projectRef = doc(db, "projects", id);
-      await updateDoc(projectRef, updatedData);
+      const { error } = await supabase.from("projects").update(updatedData).eq("id", id);
+      if (error) throw error;
     },
     onSuccess: () => toast.success("Project updated successfully!"),
     onError: (error) => {
@@ -53,8 +51,8 @@ export function useProjects() {
 
   const { mutateAsync: deleteProject } = useMutation({
     mutationFn: async (id) => {
-      const projectRef = doc(db, "projects", id);
-      await deleteDoc(projectRef);
+      const { error } = await supabase.from("projects").delete().eq("id", id);
+      if (error) throw error;
     },
     onSuccess: () => toast.success("Project deleted successfully!"),
     onError: (error) => {
