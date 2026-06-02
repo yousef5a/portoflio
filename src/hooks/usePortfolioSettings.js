@@ -22,11 +22,12 @@ const dbToFrontend = (data) => ({
   cvUpdatedAt: data?.cv_updated_at || null,
 });
 
-const mergeSettings = (data) => ({
-  ...staticSettings,
-  ...defaultCvSettings,
-  ...(data ? dbToFrontend(data) : {}),
-});
+const mergeSettings = (data) => {
+  if (!data) {
+    return { ...staticSettings, ...defaultCvSettings };
+  }
+  return { ...staticSettings, ...defaultCvSettings, ...dbToFrontend(data) };
+};
 
 const handleSettingsError = (error) => {
   console.error("Error fetching settings:", error);

@@ -9,47 +9,41 @@ const sortProjects = (data) =>
   [...data].sort((a, b) => (a.title || "").localeCompare(b.title || ""));
 
 // Field mapping: frontend names ↔ database names
-const frontendToDb = (data) => ({
-  ...data,
-  description: data.desc,
-  tech_stack: data.stack,
-  github_url: data.github,
-  live_url: data.link,
-  cover_image: data.image,
-  desc: undefined,
-  stack: undefined,
-  github: undefined,
-  link: undefined,
-  image: undefined,
-});
+const frontendToDb = (data) => {
+  const { desc, stack, github, link, image, ...rest } = data;
+  return {
+    ...rest,
+    description: desc,
+    tech_stack: stack,
+    github_url: github,
+    live_url: link,
+    cover_image: image,
+  };
+};
 
-const dbToFrontend = (data) => ({
-  ...data,
-  desc: data.description,
-  stack: data.tech_stack,
-  github: data.github_url,
-  link: data.live_url,
-  image: data.cover_image,
-  description: undefined,
-  tech_stack: undefined,
-  github_url: undefined,
-  live_url: undefined,
-  cover_image: undefined,
-});
+const dbToFrontend = (data) => {
+  const { description, tech_stack, github_url, live_url, cover_image, ...rest } = data;
+  return {
+    ...rest,
+    desc: description,
+    stack: tech_stack,
+    github: github_url,
+    link: live_url,
+    image: cover_image,
+  };
+};
 
 export function useProjects() {
   const handleSyncError = useCallback((error) => {
     console.error("Projects sync error:", error);
     toast.error("Failed to sync projects");
   }, []);
-  const { data: projectsRaw = [], isLoading: loading } = useRealtimeCollection(
+  const { data: projects = [], isLoading: loading } = useRealtimeCollection(
     "projects",
     PROJECTS_QUERY_KEY,
     (data) => sortProjects(data.map(dbToFrontend)),
     handleSyncError,
   );
-
-  const projects = projectsRaw;
 
   // Mutations
   const { mutateAsync: addProject } = useMutation({

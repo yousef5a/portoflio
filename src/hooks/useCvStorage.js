@@ -32,6 +32,7 @@ export async function saveCvToStorage(file) {
 
     if (dbError) throw dbError;
 
+    invalidateCvCache();
     return true;
   } catch (error) {
     console.error("Error uploading CV:", error);
@@ -39,13 +40,21 @@ export async function saveCvToStorage(file) {
   }
 }
 
+let cachedCvUrl = null;
+
 export async function getCvFromStorage() {
   try {
+    if (cachedCvUrl) return cachedCvUrl;
     const { data } = supabase.storage.from("portfolio").getPublicUrl(CV_PATH);
-    return data.publicUrl;
+    cachedCvUrl = data.publicUrl;
+    return cachedCvUrl;
   } catch (error) {
     return null;
   }
+}
+
+export function invalidateCvCache() {
+  cachedCvUrl = null;
 }
 
 export async function clearCvFromStorage() {
@@ -67,6 +76,7 @@ export async function clearCvFromStorage() {
 
     if (dbError) throw dbError;
 
+    invalidateCvCache();
     return true;
   } catch (error) {
     console.error("Error deleting CV:", error);
