@@ -1,15 +1,20 @@
 import { useState, useEffect } from "react";
 import { usePortfolioSettings } from "../hooks/usePortfolioSettings";
-import { useProjects } from "../context/ProjectsContext";
-import { useSkills } from "../context/SkillsContext";
+import { useProjects } from "../hooks/useProjects";
+import { useSkills } from "../hooks/useSkills";
+import { useExperience } from "../hooks/useExperience";
+import { useEducation } from "../hooks/useEducation";
 import AddProjectModal from "./AddProjectModal";
 import { FaEdit, FaTrash, FaPlus, FaSave, FaTimes, FaCog, FaChartBar, FaTasks, FaUpload } from "react-icons/fa";
 import { saveCvToStorage } from "../hooks/useCvStorage";
+import toast from "react-hot-toast";
 
 export default function AdminDashboard({ isAdmin, onLogout }) {
   const { settings, updateSettings } = usePortfolioSettings();
   const { projects, addProject, deleteProject, editProject } = useProjects();
   const { skills, addSkill, editSkill, deleteSkill } = useSkills();
+  const { experience, addExperience, editExperience, deleteExperience } = useExperience();
+  const { education, addEducation, editEducation, deleteEducation } = useEducation();
 
   const [activeTab, setActiveTab] = useState("projects");
 
@@ -55,34 +60,28 @@ export default function AdminDashboard({ isAdmin, onLogout }) {
     e.preventDefault();
     if (!skillName) return;
 
-    let result;
-    if (editingSkillId) {
-      result = await editSkill(editingSkillId, {
-        name: skillName,
-        level: Number(skillLevel),
-        category: skillCategory,
-      });
-      if (result && !result.success) {
-        alert("فشل تعديل المهارة: " + result.message);
-        return;
+    try {
+      if (editingSkillId) {
+        await editSkill(editingSkillId, {
+          name: skillName,
+          level: Number(skillLevel),
+          category: skillCategory,
+        });
+        setEditingSkillId(null);
+      } else {
+        await addSkill({
+          name: skillName,
+          level: Number(skillLevel),
+          category: skillCategory,
+        });
       }
-      setEditingSkillId(null);
-    } else {
-      result = await addSkill({
-        name: skillName,
-        level: Number(skillLevel),
-        category: skillCategory,
-      });
-      if (result && !result.success) {
-        alert("فشل إضافة المهارة: " + result.message);
-        return;
-      }
+      // Reset Skill Form
+      setSkillName("");
+      setSkillLevel(80);
+      setSkillCategory("Analysis");
+    } catch (err) {
+      console.error("Skill operation failed:", err);
     }
-
-    // Reset Skill Form
-    setSkillName("");
-    setSkillLevel(80);
-    setSkillCategory("Analysis");
   };
 
   // Click edit skill
@@ -100,31 +99,31 @@ export default function AdminDashboard({ isAdmin, onLogout }) {
     setSkillCategory("Analysis");
   };
 
-  // Handle custom project edit
+  // Handle portfolio settings save
   const handlePortfolioSubmit = async (e) => {
     e.preventDefault();
     if (cvFile) {
       try {
         await saveCvToStorage(cvFile);
-        window.dispatchEvent(new Event("cvUpdated"));
-        alert("CV saved successfully!");
+        setCvFile(null);
       } catch (err) {
-        alert("Failed to save CV.");
+        console.error("CV upload failed:", err);
+        toast.error(err.message || "CV upload failed");
       }
     }
-    updateSettings({
-      name: portfolioName,
-      subtitle: portfolioSubtitle,
-      description: portfolioDescription,
-    });
+    try {
+      await updateSettings({
+        name: portfolioName,
+        subtitle: portfolioSubtitle,
+        description: portfolioDescription,
+      });
+    } catch (err) {
+      console.error("Settings update failed:", err);
+    }
   };
 
   const handleAddProject = async (projectData) => {
-    const result = await addProject(projectData);
-    if (result && !result.success) {
-      alert(result.message);
-      return;
-    }
+    await addProject(projectData);
   };
 
   return (
@@ -177,7 +176,27 @@ export default function AdminDashboard({ isAdmin, onLogout }) {
                 : "border-transparent text-slate-550 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white"
             }`}
           >
-            <FaCog size={14} /> Portfolio Settings
+            <FaCog size={14} /> Settings
+          </button>
+          <button
+            onClick={() => setActiveTab("experience")}
+            className={`flex items-center gap-2 pb-4 text-sm font-bold border-b-2 transition-all ${
+              activeTab === "experience"
+                ? "border-sky-500 text-sky-500"
+                : "border-transparent text-slate-550 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white"
+            }`}
+          >
+            <FaTasks size={14} /> Experience
+          </button>
+          <button
+            onClick={() => setActiveTab("education")}
+            className={`flex items-center gap-2 pb-4 text-sm font-bold border-b-2 transition-all ${
+              activeTab === "education"
+                ? "border-sky-500 text-sky-500"
+                : "border-transparent text-slate-550 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white"
+            }`}
+          >
+            <FaTasks size={14} /> Education
           </button>
         </div>
 
@@ -254,6 +273,48 @@ export default function AdminDashboard({ isAdmin, onLogout }) {
     </form>
   </div>
 )}
+{activeTab === "experience" && (
+  <div className="space-y-6">
+    <h3 className="text-2xl font-bold text-slate-800 dark:text-white">Experience Management</h3>
+    <button 
+      onClick={() => addExperience({ role: "New Role", company: "Company", duration: "Jan 2026 - Present", points: ["Point 1"] })}
+      className="px-4 py-2 bg-sky-500 text-white rounded-xl mb-4"
+    >
+      + Quick Add Blank Experience
+    </button>
+    <div className="grid gap-4">
+      {experience.map(exp => (
+        <div key={exp.id} className="p-4 border rounded-xl dark:border-slate-700 space-y-2">
+          <input className="block w-full border p-2 rounded dark:bg-slate-800" value={exp.role} onChange={e => editExperience({id: exp.id, updatedData: {role: e.target.value}})} placeholder="Role" />
+          <input className="block w-full border p-2 rounded dark:bg-slate-800" value={exp.company} onChange={e => editExperience({id: exp.id, updatedData: {company: e.target.value}})} placeholder="Company" />
+          <input className="block w-full border p-2 rounded dark:bg-slate-800" value={exp.duration} onChange={e => editExperience({id: exp.id, updatedData: {duration: e.target.value}})} placeholder="Duration" />
+          <button onClick={() => deleteExperience(exp.id)} className="text-rose-500 text-sm">Delete</button>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
+{activeTab === "education" && (
+  <div className="space-y-6">
+    <h3 className="text-2xl font-bold text-slate-800 dark:text-white">Education Management</h3>
+    <button 
+      onClick={() => addEducation({ school: "University", degree: "Degree", year: "2026", tags: [] })}
+      className="px-4 py-2 bg-sky-500 text-white rounded-xl mb-4"
+    >
+      + Quick Add Blank Education
+    </button>
+    <div className="grid gap-4">
+      {education.map(edu => (
+        <div key={edu.id} className="p-4 border rounded-xl dark:border-slate-700 space-y-2">
+          <input className="block w-full border p-2 rounded dark:bg-slate-800" value={edu.school} onChange={e => editEducation({id: edu.id, updatedData: {school: e.target.value}})} placeholder="School" />
+          <input className="block w-full border p-2 rounded dark:bg-slate-800" value={edu.degree} onChange={e => editEducation({id: edu.id, updatedData: {degree: e.target.value}})} placeholder="Degree" />
+          <input className="block w-full border p-2 rounded dark:bg-slate-800" value={edu.year} onChange={e => editEducation({id: edu.id, updatedData: {year: e.target.value}})} placeholder="Year" />
+          <button onClick={() => deleteEducation(edu.id)} className="text-rose-500 text-sm">Delete</button>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
 {activeTab === "projects" && (
 
           <div className="space-y-6">
@@ -296,6 +357,8 @@ export default function AdminDashboard({ isAdmin, onLogout }) {
                               <img
                                 src={project.image}
                                 alt={project.title}
+                                loading="lazy"
+                                decoding="async"
                                 className="w-full h-full object-cover"
                               />
                             ) : (
@@ -313,7 +376,7 @@ export default function AdminDashboard({ isAdmin, onLogout }) {
                         </td>
                         <td className="p-4">
                           <div className="flex flex-wrap gap-1">
-                            {project.stack.slice(0, 3).map((item) => (
+                            {(project.stack || []).slice(0, 3).map((item) => (
                               <span
                                 key={item}
                                 className="text-[10px] px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-mono"
@@ -321,9 +384,9 @@ export default function AdminDashboard({ isAdmin, onLogout }) {
                                 {item}
                               </span>
                             ))}
-                            {project.stack.length > 3 && (
+                            {(project.stack || []).length > 3 && (
                               <span className="text-[10px] text-slate-400">
-                                +{project.stack.length - 3}
+                                +{(project.stack || []).length - 3}
                               </span>
                             )}
                           </div>
@@ -340,10 +403,7 @@ export default function AdminDashboard({ isAdmin, onLogout }) {
                             <button
                               onClick={async () => {
                                 if (confirm("Are you sure you want to delete this project?")) {
-                                  const result = await deleteProject(project.id);
-                                  if (result && !result.success) {
-                                    alert("فشل حذف المشروع: " + result.message);
-                                  }
+                                  await deleteProject(project.id);
                                 }
                               }}
                               className="p-2 rounded-lg bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white transition-all"
@@ -482,10 +542,7 @@ export default function AdminDashboard({ isAdmin, onLogout }) {
                             <button
                               onClick={async () => {
                                 if (confirm("Are you sure you want to delete this skill?")) {
-                                  const result = await deleteSkill(skill.id);
-                                  if (result && !result.success) {
-                                    alert("فشل حذف المهارة: " + result.message);
-                                  }
+                                  await deleteSkill(skill.id);
                                 }
                               }}
                               className="p-2 rounded-lg bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white transition-all"
@@ -512,10 +569,7 @@ export default function AdminDashboard({ isAdmin, onLogout }) {
         projectToEdit={editingProject}
         onAdd={handleAddProject}
         onEdit={async (id, data) => {
-          const result = await editProject(id, data);
-          if (result && result.success === false) {
-            alert("فشل تعديل المشروع: " + (result.message || ""));
-          }
+          await editProject(id, data);
         }}
       />
     </section>

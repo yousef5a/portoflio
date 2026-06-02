@@ -1,31 +1,25 @@
 import { useState } from "react";
-import { FaTimes, FaLock, FaUser, FaSpinner, FaEye, FaEyeSlash } from "react-icons/fa";
+import { FaTimes, FaLock, FaEnvelope, FaSpinner, FaEye, FaEyeSlash } from "react-icons/fa";
 
 export default function LoginModal({ isOpen, onClose, onLogin }) {
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setError("");
     setLoading(true);
 
-    setTimeout(() => {
-      const success = onLogin(username, password);
-      setLoading(false);
-      if (success) {
-        setUsername("");
-        setPassword("");
-        onClose();
-      } else {
-        setError("Invalid username or password. Please try again.");
-      }
-    }, 800);
+    const success = await onLogin(email, password);
+    setLoading(false);
+    if (success) {
+      setEmail("");
+      setPassword("");
+      onClose();
+    }
   };
 
   return (
@@ -51,31 +45,22 @@ export default function LoginModal({ isOpen, onClose, onLogin }) {
           </p>
         </div>
 
-        {error && (
-          <div className="p-3 mb-4 rounded-xl bg-rose-500/10 text-rose-500 border border-rose-500/20 text-xs text-center font-medium">
-            {error}
-          </div>
-        )}
-
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="relative">
             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
-              <FaUser size={14} />
+              <FaEnvelope size={14} />
             </span>
             <input
-              type="text"
+              type="email"
               required
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="Username"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Email Address"
               className="w-full pl-11 pr-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 focus:border-sky-500 outline-none text-sm transition-colors text-slate-800 dark:text-white"
             />
           </div>
 
           <div className="relative">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
-              <FaLock size={14} />
-            </span>
             <div className="relative">
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
                 <FaLock size={14} />

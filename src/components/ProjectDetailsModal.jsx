@@ -1,19 +1,22 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { FaTimes, FaGithub, FaExternalLinkAlt, FaChevronLeft, FaChevronRight } from "react-icons/fa";
 
 export default function ProjectDetailsModal({ isOpen, project, onClose }) {
   const [currentSlide, setCurrentSlide] = useState(0);
 
-  if (!isOpen || !project) return null;
-
   // Gather images (cover image + optional screenshots)
-  const images = [];
-  if (project.image) {
-    images.push(project.image);
-  }
-  if (project.screenshots && project.screenshots.length > 0) {
-    images.push(...project.screenshots);
-  }
+  const images = useMemo(() => {
+    const projectImages = [];
+    if (project?.image) {
+      projectImages.push(project.image);
+    }
+    if (project?.screenshots && project.screenshots.length > 0) {
+      projectImages.push(...project.screenshots);
+    }
+    return projectImages;
+  }, [project]);
+
+  if (!isOpen || !project) return null;
 
   const handlePrev = () => {
     setCurrentSlide((prev) => (prev === 0 ? images.length - 1 : prev - 1));
@@ -41,6 +44,8 @@ export default function ProjectDetailsModal({ isOpen, project, onClose }) {
             <img
               src={images[currentSlide]}
               alt={`${project.title} - view ${currentSlide + 1}`}
+              loading="lazy"
+              decoding="async"
               className="w-full h-full object-contain max-h-[40vh]"
             />
             <div className="absolute inset-0 bg-slate-950/20 pointer-events-none" />
@@ -130,7 +135,7 @@ export default function ProjectDetailsModal({ isOpen, project, onClose }) {
               Technologies & Tools
             </h4>
             <div className="flex flex-wrap gap-2">
-              {project.stack.map((item) => (
+              {(project.stack || []).map((item) => (
                 <span
                   key={item}
                   className="text-xs px-3 py-1.5 rounded-xl bg-slate-200/50 dark:bg-slate-800/50 text-slate-700 dark:text-slate-200 font-mono font-semibold"

@@ -1,101 +1,77 @@
-import { useState, useEffect } from "react";
-import { collection, query, orderBy, limit, startAfter, getDocs, doc, setDoc, updateDoc, deleteDoc } from "firebase/firestore";
+import { useCallback } from "react";
+import { doc, setDoc, updateDoc, deleteDoc } from "firebase/firestore";
+import { useMutation } from "@tanstack/react-query";
 import { db } from "../lib/firebase";
-import { initialProjects } from "../data/initialProjects";
+import { useRealtimeCollection } from "./useRealtimeCollection";
+import toast from "react-hot-toast";
+
+const PROJECTS_QUERY_KEY = ["projects"];
+const sortProjects = (data) =>
+  [...data].sort((a, b) => (a.title || "").localeCompare(b.title || ""));
 
 export function useProjects() {
-  const [projects, setProjects] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [lastVisible, setLastVisible] = useState(null);
-  const [hasMore, setHasMore] = useState(true);
-
-  const fetchProjects = async (initial = true) => {
-    try {
-      const baseQuery = query(
-        collection(db, "projects"),
-        orderBy("title"),
-        limit(10)
-      );
-      const q = initial ? baseQuery : query(
-        collection(db, "projects"),
-        orderBy("title"),
-        startAfter(lastVisible),
-        limit(10)
-      );
-      const snapshot = await getDocs(q);
-      if (snapshot.empty) {
-        if (initial) {
-          setProjects(initialProjects);
-        }
-        setHasMore(false);
-        setLoading(false);
-        return;
-      }
-      const fetched = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setProjects(prev => (initial ? fetched : [...prev, ...fetched]));
-      setLastVisible(snapshot.docs[snapshot.docs.length - 1]);
-      setHasMore(snapshot.docs.length === 10);
-      setLoading(false);
-    } catch (error) {
-      console.error("Error fetching projects from Firestore:", error);
-      setProjects(initialProjects);
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchProjects();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  const handleSyncError = useCallback((error) => {
+    console.error("Projects sync error:", error);
+    toast.error("Failed to sync projects");
   }, []);
+  const { data: projects = [], isLoading: loading } = useRealtimeCollection(
+    "projects",
+    PROJECTS_QUERY_KEY,
+    sortProjects,
+    handleSyncError
+  );
 
-  const addProject = async (newProject) => {
-    try {
-      const projectId = Date.now().toString(); // Or let Firestore generate it with addDoc
+  // Mutations
+  const { mutateAsync: addProject } = useMutation({
+    mutationFn: async (newProject) => {
+      const projectId = Date.now().toString();
       const projectRef = doc(db, "projects", projectId);
       await setDoc(projectRef, {
         ...newProject,
         screenshots: newProject.screenshots || [],
       });
-      // Optimistic UI: prepend the new project locally
-      setProjects(prev => [{ id: projectId, ...newProject, screenshots: newProject.screenshots || [] }, ...prev]);
-      return { success: true };
-    } catch (error) {
+      return projectId;
+    },
+    onSuccess: () => toast.success("Project added successfully!"),
+    onError: (error) => {
       console.error("Error adding project:", error);
-      return { success: false, message: "فشل حفظ المشروع في قاعدة البيانات." };
+      toast.error("Failed to add project.");
     }
-  };
+  });
 
-  const deleteProject = async (id) => {
-    try {
-      const projectRef = doc(db, "projects", id);
-      await deleteDoc(projectRef);
-      // Optimistic UI: remove locally
-      setProjects(prev => prev.filter(p => p.id !== id));
-      return { success: true };
-    } catch (error) {
-      console.error("Error deleting project:", error);
-      return { success: false, message: error.message };
-    }
-  };
-
-  const editProject = async (id, updatedData) => {
-    try {
+  const { mutateAsync: editProjectMutation } = useMutation({
+    mutationFn: async ({ id, updatedData }) => {
       const projectRef = doc(db, "projects", id);
       await updateDoc(projectRef, updatedData);
-      // Optimistic UI: update locally
-      setProjects(prev => prev.map(p => (p.id === id ? { ...p, ...updatedData } : p)));
-      return { success: true };
-    } catch (error) {
+    },
+    onSuccess: () => toast.success("Project updated successfully!"),
+    onError: (error) => {
       console.error("Error editing project:", error);
-      return { success: false, message: error.message };
+      toast.error("Failed to update project.");
     }
+  });
+
+  const { mutateAsync: deleteProject } = useMutation({
+    mutationFn: async (id) => {
+      const projectRef = doc(db, "projects", id);
+      await deleteDoc(projectRef);
+    },
+    onSuccess: () => toast.success("Project deleted successfully!"),
+    onError: (error) => {
+      console.error("Error deleting project:", error);
+      toast.error("Failed to delete project.");
+    }
+  });
+
+  const editProject = async (id, updatedData) => {
+    return editProjectMutation({ id, updatedData });
   };
 
-  const loadMore = () => {
-    if (hasMore && !loading) {
-      fetchProjects(false);
-    }
+  return { 
+    projects, 
+    addProject, 
+    deleteProject, 
+    editProject, 
+    loading 
   };
-
-  return { projects, addProject, deleteProject, editProject, loading, loadMore, hasMore };
 }

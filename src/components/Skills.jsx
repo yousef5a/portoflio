@@ -1,18 +1,20 @@
 import { motion } from "framer-motion";
-import { useState } from "react";
-import { useSkills } from "../context/SkillsContext";
+import { memo, useMemo, useState } from "react";
+import { useSkills } from "../hooks/useSkills";
 import Spinner from "./Spinner";
 
 const categories = ["All", "Analysis", "Visualization", "Database", "Programming", "Data Management"];
 
-export default function Skills() {
-  const { skills } = useSkills();
+function Skills() {
+  const { skills, loading } = useSkills();
   const [activeCategory, setActiveCategory] = useState("All");
 
-
-  const filteredSkills = activeCategory === "All"
-    ? skills
-    : skills.filter((s) => s.category === activeCategory);
+  const filteredSkills = useMemo(
+    () => activeCategory === "All"
+      ? skills
+      : skills.filter((s) => s.category === activeCategory),
+    [activeCategory, skills]
+  );
 
   return (
     <section id="skills" className="py-24 border-b border-slate-200/50 dark:border-white/5 relative">
@@ -87,3 +89,5 @@ export default function Skills() {
     </section>
   );
 }
+
+export default memo(Skills);

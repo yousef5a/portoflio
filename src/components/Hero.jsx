@@ -1,34 +1,16 @@
 import { motion } from "framer-motion";
+import { useMemo } from "react";
 import { FaDownload, FaLinkedin, FaGithub, FaEnvelope, FaWhatsapp } from "react-icons/fa";
 import { usePortfolioSettings } from "../hooks/usePortfolioSettings";
-import { useState, useEffect } from "react";
-import { getCvFromStorage } from "../hooks/useCvStorage";
 
 export default function Hero() {
   const { settings } = usePortfolioSettings();
-  const [cvDownloadUrl, setCvDownloadUrl] = useState(settings.cvUrl);
-
-  useEffect(() => {
-    // If there is an uploaded CV in IndexedDB, use it instead of settings.cvUrl
-    const loadCv = async () => {
-      try {
-        const url = await getCvFromStorage();
-        if (url) {
-          setCvDownloadUrl(url);
-        } else {
-          setCvDownloadUrl(settings.cvUrl);
-        }
-      } catch (err) {
-        console.error("Failed to load CV from storage", err);
-        setCvDownloadUrl(settings.cvUrl);
-      }
-    };
-    
-    loadCv();
-
-    window.addEventListener("cvUpdated", loadCv);
-    return () => window.removeEventListener("cvUpdated", loadCv);
-  }, [settings.cvUrl]);
+  const cvDownloadUrl = useMemo(() => {
+    if (!settings.cvUrl) return "#";
+    if (!settings.cvUpdatedAt) return settings.cvUrl;
+    const separator = settings.cvUrl.includes("?") ? "&" : "?";
+    return `${settings.cvUrl}${separator}v=${settings.cvUpdatedAt}`;
+  }, [settings.cvUpdatedAt, settings.cvUrl]);
 
   return (
     <section id="home" className="relative min-h-[calc(100vh-80px)] flex items-center py-20 overflow-hidden">
@@ -104,7 +86,7 @@ export default function Hero() {
           <div className="absolute inset-0 bg-gradient-to-tr from-sky-500 to-indigo-500 rounded-[2.5rem] rotate-6 opacity-20 blur-xl scale-95" />
           <div className="relative group w-72 sm:w-80 md:w-full max-w-[360px] aspect-[1/1.3] bg-slate-200 dark:bg-slate-900 rounded-[2.5rem] p-3 shadow-2xl border border-slate-300/50 dark:border-white/10 overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-b from-transparent via-slate-100/10 to-slate-950/20 dark:to-slate-950/60 z-10" />
-            <img src="/profile.png" alt={settings.name} className="w-full h-full object-cover rounded-[2rem] relative z-0 transition-transform duration-700 group-hover:scale-105" />
+            <img src="/profile.png" alt={settings.name} decoding="async" className="w-full h-full object-cover rounded-[2rem] relative z-0 transition-transform duration-700 group-hover:scale-105" />
             <div className="absolute bottom-6 left-6 right-6 z-20 backdrop-blur-md bg-white/70 dark:bg-slate-950/70 border border-white/20 dark:border-white/5 p-4 rounded-2xl shadow-xl flex items-center justify-between">
               <div>
                 <div className="text-[10px] uppercase tracking-wider font-mono text-slate-500 dark:text-slate-400">Primary Domain</div>

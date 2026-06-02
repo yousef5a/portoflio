@@ -1,0 +1,61 @@
+import { useCallback } from "react";
+import { doc, setDoc, updateDoc, deleteDoc } from "firebase/firestore";
+import { useMutation } from "@tanstack/react-query";
+import { db } from "../lib/firebase";
+import { useRealtimeCollection } from "./useRealtimeCollection";
+import toast from "react-hot-toast";
+
+const EDUCATION_QUERY_KEY = ["education"];
+
+export function useEducation() {
+  const handleSyncError = useCallback((error) => {
+    console.error("Education sync error:", error);
+    toast.error("Failed to sync education");
+  }, []);
+  const { data: education = [], isLoading: loading } = useRealtimeCollection(
+    "education",
+    EDUCATION_QUERY_KEY,
+    null,
+    handleSyncError
+  );
+
+  const { mutateAsync: addEducation } = useMutation({
+    mutationFn: async (newEdu) => {
+      const eduId = Date.now().toString();
+      const eduRef = doc(db, "education", eduId);
+      await setDoc(eduRef, newEdu);
+      return eduId;
+    },
+    onSuccess: () => toast.success("Education added successfully!"),
+    onError: (error) => {
+      console.error("Error adding education:", error);
+      toast.error("Failed to add education.");
+    }
+  });
+
+  const { mutateAsync: editEducation } = useMutation({
+    mutationFn: async ({ id, updatedData }) => {
+      const eduRef = doc(db, "education", id);
+      await updateDoc(eduRef, updatedData);
+    },
+    onSuccess: () => toast.success("Education updated successfully!"),
+    onError: (error) => {
+      console.error("Error editing education:", error);
+      toast.error("Failed to update education.");
+    }
+  });
+
+  const { mutateAsync: deleteEducation } = useMutation({
+    mutationFn: async (id) => {
+      const eduRef = doc(db, "education", id);
+      await deleteDoc(eduRef);
+    },
+    onSuccess: () => toast.success("Education deleted successfully!"),
+    onError: (error) => {
+      console.error("Error deleting education:", error);
+      toast.error("Failed to delete education.");
+    }
+  });
+
+  return { education, addEducation, editEducation, deleteEducation, loading };
+}

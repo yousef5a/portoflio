@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useProjects } from "../context/ProjectsContext";
+import { memo, useCallback, useMemo, useState } from "react";
+import { useProjects } from "../hooks/useProjects";
 import ProjectCard from "./ProjectCard";
 import AddProjectModal from "./AddProjectModal";
 import ImageGalleryModal from "./ImageGalleryModal";
@@ -8,7 +8,7 @@ import ProjectDetailsModal from "./ProjectDetailsModal";
 import { FaPlus, FaSearch } from "react-icons/fa";
 import Spinner from "./Spinner";
 
-export default function Projects({ isAdmin }) {
+function Projects({ isAdmin }) {
   const { projects, addProject, loading } = useProjects();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTech, setSelectedTech] = useState("All");
@@ -17,30 +17,37 @@ export default function Projects({ isAdmin }) {
   const [galleryState, setGalleryState] = useState({ isOpen: false, images: [], index: 0 });
 
 
-  const handleAddProject = async (projectData) => {
+  const handleAddProject = useCallback(async (projectData) => {
     const result = await addProject(projectData);
     if (result && !result.success) {
       alert(result.message);
       return;
     }
     setIsAddModalOpen(false);
-  };
+  }, [addProject]);
 
   // Get all unique technologies across all projects
-  const allTechs = ["All", ...new Set(projects.flatMap((p) => p.stack || []))];
+  const allTechs = useMemo(
+    () => ["All", ...new Set(projects.flatMap((p) => p.stack || []))],
+    [projects]
+  );
 
   // Filter projects by search and tech filter
-  const filteredProjects = projects.filter((project) => {
-    const matchesSearch =
-      project.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      project.desc.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesTech = selectedTech === "All" || project.stack?.includes(selectedTech);
-    return matchesSearch && matchesTech;
-  });
+  const filteredProjects = useMemo(
+    () => projects.filter((project) => {
+      const query = searchQuery.toLowerCase();
+      const matchesSearch =
+        (project.title || "").toLowerCase().includes(query) ||
+        (project.desc || "").toLowerCase().includes(query);
+      const matchesTech = selectedTech === "All" || project.stack?.includes(selectedTech);
+      return matchesSearch && matchesTech;
+    }),
+    [projects, searchQuery, selectedTech]
+  );
 
-  const handleImageClick = (images, index) => {
+  const handleImageClick = useCallback((images, index) => {
     setGalleryState({ isOpen: true, images, index });
-  };
+  }, []);
 
   return (
     <section id="projects" className="py-24 border-b border-slate-200/50 dark:border-white/5 relative">
@@ -143,3 +150,5 @@ export default function Projects({ isAdmin }) {
     </section>
   );
 }
+
+export default memo(Projects);

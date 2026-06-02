@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { FaTimes, FaPlus, FaSpinner, FaCloudUploadAlt, FaSave } from "react-icons/fa";
+import { ref, uploadString, getDownloadURL } from "firebase/storage";
+import { storage } from "../lib/firebase";
 
 // Compress image to max 800x600 JPEG at 70% quality to save localStorage space
 const compressImage = (file) =>
@@ -22,6 +24,18 @@ const compressImage = (file) =>
     img.onerror = () => { URL.revokeObjectURL(url); resolve(""); };
     img.src = url;
   });
+
+const getUploadErrorMessage = (error) => {
+  if (error?.code === "storage/unauthorized") {
+    return "You do not have permission to upload project images. Confirm your admin UID is allowed in storage.rules.";
+  }
+
+  if (error?.code === "storage/bucket-not-found" || error?.code === "storage/unknown") {
+    return "Firebase Storage is not configured. Enable Storage in Firebase Console, then deploy storage.rules.";
+  }
+
+  return error?.message || "Failed to upload images or save project.";
+};
 
 export default function AddProjectModal({ isOpen, onClose, onAdd, onEdit, projectToEdit }) {
   const [title, setTitle] = useState("");
@@ -74,7 +88,7 @@ export default function AddProjectModal({ isOpen, onClose, onAdd, onEdit, projec
     setScreenshots((prev) => [...prev, ...results.filter(Boolean)]);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!title || !desc || !github || !link) {
       alert("Please fill in all required fields!");
@@ -83,26 +97,46 @@ export default function AddProjectModal({ isOpen, onClose, onAdd, onEdit, projec
 
     setLoading(true);
 
-    const projectData = {
-      title,
-      desc,
-      stack: stackInput.split(",").map((s) => s.trim()).filter((s) => s !== ""),
-      github,
-      link,
-      category,
-      image,
-      screenshots,
-    };
-
-    setTimeout(() => {
-      if (isEditMode) {
-        onEdit(projectToEdit.id, projectData);
-      } else {
-        onAdd(projectData);
+    try {
+      let finalImage = image;
+      if (image && image.startsWith("data:image")) {
+        const imageRef = ref(storage, `projects/${Date.now()}_cover.jpg`);
+        await uploadString(imageRef, image, 'data_url');
+        finalImage = await getDownloadURL(imageRef);
       }
-      setLoading(false);
+
+      const finalScreenshots = await Promise.all(screenshots.map(async (s, index) => {
+        if (s && s.startsWith("data:image")) {
+          const sRef = ref(storage, `projects/${Date.now()}_screenshot_${index}.jpg`);
+          await uploadString(sRef, s, 'data_url');
+          return await getDownloadURL(sRef);
+        }
+        return s;
+      }));
+
+      const projectData = {
+        title,
+        desc,
+        stack: stackInput.split(",").map((s) => s.trim()).filter((s) => s !== ""),
+        github,
+        link,
+        category,
+        image: finalImage,
+        screenshots: finalScreenshots,
+      };
+
+      if (isEditMode) {
+        await onEdit(projectToEdit.id, projectData);
+      } else {
+        await onAdd(projectData);
+      }
       onClose();
-    }, 800);
+    } catch (err) {
+      console.error("Upload error:", err);
+      alert(getUploadErrorMessage(err));
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -131,7 +165,7 @@ export default function AddProjectModal({ isOpen, onClose, onAdd, onEdit, projec
               <div className="relative flex flex-col items-center justify-center border-2 border-dashed border-slate-300 dark:border-slate-800 rounded-2xl p-4 hover:border-sky-500 transition-colors bg-slate-50 dark:bg-slate-950">
                 {image ? (
                   <div className="w-full aspect-video rounded-xl overflow-hidden relative">
-                    <img src={image} alt="Cover preview" className="w-full h-full object-cover" />
+                    <img src={image} alt="Cover preview" loading="lazy" decoding="async" className="w-full h-full object-cover" />
                     <button
                       type="button"
                       onClick={() => setImage("")}
@@ -181,7 +215,7 @@ export default function AddProjectModal({ isOpen, onClose, onAdd, onEdit, projec
                 <div className="flex flex-wrap gap-2 mt-3 max-h-16 overflow-y-auto">
                   {screenshots.map((s, i) => (
                     <div key={i} className="relative w-10 h-8 rounded border border-slate-300 dark:border-white/10 overflow-hidden">
-                      <img src={s} alt={`Thumb ${i}`} className="w-full h-full object-cover" />
+                      <img src={s} alt={`Thumb ${i}`} loading="lazy" decoding="async" className="w-full h-full object-cover" />
                       <button
                         type="button"
                         onClick={() => setScreenshots((prev) => prev.filter((_, idx) => idx !== i))}

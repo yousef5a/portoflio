@@ -28,8 +28,8 @@ export default function App() {
     localStorage.setItem("theme", theme);
   }, [theme]);
 
-  const handleLogin = (username, password) => {
-    const success = login(username, password);
+  const handleLogin = async (username, password) => {
+    const success = await login(username, password);
     if (success) setLoginModalOpen(false);
     return success;
   };

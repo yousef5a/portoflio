@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { memo, useMemo } from "react";
 import { FaGithub, FaExternalLinkAlt, FaTrash, FaImages } from "react-icons/fa";
 
 // Special SVG Previews simulating dashboard analytics for each project
@@ -203,14 +204,16 @@ const GenericPreview = ({ title }) => (
   </div>
 );
 
-export default function ProjectCard({ project, onDelete, onImageClick, onCardClick }) {
+function ProjectCard({ project, onDelete, onImageClick, onCardClick }) {
   // Render suitable preview card
-  const renderPreview = () => {
+  const preview = useMemo(() => {
     if (project.image) {
       return (
         <img
           src={project.image}
           alt={project.title}
+          loading="lazy"
+          decoding="async"
           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
         />
       );
@@ -228,7 +231,7 @@ export default function ProjectCard({ project, onDelete, onImageClick, onCardCli
       default:
         return <GenericPreview title={project.title} />;
     }
-  };
+  }, [project.image, project.title, project.type]);
 
   return (
     <motion.article
@@ -256,7 +259,7 @@ export default function ProjectCard({ project, onDelete, onImageClick, onCardCli
 
       {/* Project Visual Area */}
       <div className="relative aspect-video w-full overflow-hidden border-b border-slate-200 dark:border-white/5">
-        {renderPreview()}
+        {preview}
         <div className="absolute inset-0 bg-slate-950/20 dark:bg-slate-950/45 group-hover:bg-slate-950/10 transition-colors duration-300 z-10" />
       </div>
 
@@ -273,7 +276,7 @@ export default function ProjectCard({ project, onDelete, onImageClick, onCardCli
 
           {/* Tech Stack tags */}
           <div className="mt-4 flex flex-wrap gap-1.5">
-            {project.stack.map((item) => (
+            {(project.stack || []).map((item) => (
               <span
                 key={item}
                 className="text-[10px] font-mono px-2.5 py-1 rounded-lg bg-slate-200/50 dark:bg-slate-800/50 text-slate-700 dark:text-slate-200 font-semibold"
@@ -300,7 +303,7 @@ export default function ProjectCard({ project, onDelete, onImageClick, onCardCli
                   }}
                   className="w-12 h-10 rounded-lg overflow-hidden border border-slate-300 dark:border-white/10 flex-shrink-0 hover:border-sky-500 transition-colors"
                 >
-                  <img src={screen} alt={`Screenshot ${idx + 1}`} className="w-full h-full object-cover" />
+                  <img src={screen} alt={`Screenshot ${idx + 1}`} loading="lazy" decoding="async" className="w-full h-full object-cover" />
                 </button>
               ))}
             </div>
@@ -333,3 +336,5 @@ export default function ProjectCard({ project, onDelete, onImageClick, onCardCli
     </motion.article>
   );
 }
+
+export default memo(ProjectCard);

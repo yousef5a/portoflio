@@ -45,6 +45,8 @@ export default function ImageGalleryModal({ isOpen, images, initialIndex, onClos
         <img
           src={images[currentIndex]}
           alt={`Screenshot preview ${currentIndex + 1}`}
+          loading="lazy"
+          decoding="async"
           className="max-w-full max-h-full object-contain rounded-2xl shadow-2xl border border-white/5"
         />
 
