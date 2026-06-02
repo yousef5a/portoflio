@@ -10,7 +10,7 @@ import { saveCvToStorage } from "../hooks/useCvStorage";
 import toast from "react-hot-toast";
 
 export default function AdminDashboard({ isAdmin, onLogout }) {
-  const { settings, updateSettings } = usePortfolioSettings();
+  const { settings, updateCvSettings } = usePortfolioSettings();
   const { projects, addProject, deleteProject, editProject } = useProjects();
   const { skills, addSkill, editSkill, deleteSkill } = useSkills();
   const { experience, addExperience, editExperience, deleteExperience } = useExperience();
@@ -18,17 +18,8 @@ export default function AdminDashboard({ isAdmin, onLogout }) {
 
   const [activeTab, setActiveTab] = useState("projects");
 
-  // Portfolio form state
-  const [portfolioName, setPortfolioName] = useState(settings.name);
-  const [portfolioSubtitle, setPortfolioSubtitle] = useState(settings.subtitle);
-  const [portfolioDescription, setPortfolioDescription] = useState(settings.description);
+  // Portfolio form state - Display only (name, subtitle, description are hardcoded)
   const [cvFile, setCvFile] = useState(null);
-
-  useEffect(() => {
-    setPortfolioName(settings.name);
-    setPortfolioSubtitle(settings.subtitle);
-    setPortfolioDescription(settings.description);
-  }, [settings]);
 
   
   // Projects State
@@ -99,26 +90,20 @@ export default function AdminDashboard({ isAdmin, onLogout }) {
     setSkillCategory("Analysis");
   };
 
-  // Handle portfolio settings save
+  // Handle CV upload only (name, subtitle, description are hardcoded)
   const handlePortfolioSubmit = async (e) => {
     e.preventDefault();
     if (cvFile) {
       try {
         await saveCvToStorage(cvFile);
         setCvFile(null);
+        toast.success("CV uploaded successfully!");
       } catch (err) {
         console.error("CV upload failed:", err);
         toast.error(err.message || "CV upload failed");
       }
-    }
-    try {
-      await updateSettings({
-        name: portfolioName,
-        subtitle: portfolioSubtitle,
-        description: portfolioDescription,
-      });
-    } catch (err) {
-      console.error("Settings update failed:", err);
+    } else {
+      toast.info("No CV file selected");
     }
   };
 
@@ -204,44 +189,49 @@ export default function AdminDashboard({ isAdmin, onLogout }) {
         {activeTab === "portfolio" && (
   <div className="space-y-6">
     <h3 className="text-2xl font-bold text-slate-800 dark:text-white">Portfolio Settings</h3>
-    <form onSubmit={handlePortfolioSubmit} className="grid gap-4 max-w-lg">
+    <div className="p-4 rounded-xl bg-sky-500/10 border border-sky-500/20 text-[11px] text-sky-600 dark:text-sky-400 font-mono space-y-1 max-w-lg">
+      <div><span className="font-bold">📌 ملاحظة مهمة:</span> الاسم والـ subtitle والـ description ثابتة في الكود</div>
+      <div>لا يمكن تعديلها من لوحة التحكم (hardcoded values)</div>
+      <div>فقط يمكنك رفع ملف CV جديد</div>
+    </div>
+    
+    <div className="grid gap-3 max-w-lg p-4 bg-slate-100/50 dark:bg-slate-900/30 rounded-xl">
       <div>
-        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Name</label>
+        <label className="block text-xs font-mono font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Name (Hardcoded)</label>
         <input
           type="text"
-          value={portfolioName}
-          onChange={(e) => setPortfolioName(e.target.value)}
-          className="mt-1 w-full rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white py-2 px-3"
-          required
+          value={settings.name}
+          readOnly
+          className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-400 py-2 px-3 text-sm opacity-70 cursor-not-allowed"
         />
       </div>
       <div>
-        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Subtitle</label>
+        <label className="block text-xs font-mono font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Subtitle (Hardcoded)</label>
         <input
           type="text"
-          value={portfolioSubtitle}
-          onChange={(e) => setPortfolioSubtitle(e.target.value)}
-          className="mt-1 w-full rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white py-2 px-3"
-          required
+          value={settings.subtitle}
+          readOnly
+          className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-400 py-2 px-3 text-sm opacity-70 cursor-not-allowed"
         />
       </div>
       <div>
-        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Description</label>
+        <label className="block text-xs font-mono font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Description (Hardcoded)</label>
         <textarea
-          value={portfolioDescription}
-          onChange={(e) => setPortfolioDescription(e.target.value)}
-          className="mt-1 w-full rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white py-2 px-3"
-          rows={4}
-          required
+          value={settings.description}
+          readOnly
+          className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-400 py-2 px-3 text-sm opacity-70 cursor-not-allowed"
+          rows={3}
         />
       </div>
+    </div>
 
-      <div>
-        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Upload New CV (PDF)</label>
-        <div className="mt-1 flex items-center gap-3">
-          <label className="cursor-pointer flex items-center gap-2 px-4 py-2.5 bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20 rounded-xl hover:bg-sky-500 hover:text-white transition-all text-xs font-semibold">
-            <FaUpload />
-            {cvFile ? cvFile.name : "Choose File"}
+    <form onSubmit={handlePortfolioSubmit} className="grid gap-4 max-w-lg">
+      <div className="p-3 rounded-lg bg-indigo-500/10 border border-indigo-500/20">
+        <label className="block text-xs font-mono font-bold text-indigo-600 dark:text-indigo-400 uppercase mb-2">📤 Upload New CV (PDF)</label>
+        <div className="flex items-center gap-3">
+          <label className="cursor-pointer flex items-center gap-2 px-4 py-2.5 bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 border border-indigo-500/30 rounded-lg hover:bg-indigo-500 hover:text-white transition-all text-xs font-semibold flex-1">
+            <FaUpload size={12} />
+            {cvFile ? cvFile.name : "Choose PDF File"}
             <input 
               type="file" 
               accept=".pdf" 
@@ -259,16 +249,21 @@ export default function AdminDashboard({ isAdmin, onLogout }) {
               onClick={() => setCvFile(null)}
               className="text-rose-500 hover:text-rose-600 text-xs font-semibold"
             >
-              Clear
+              ✕ Clear
             </button>
           )}
         </div>
       </div>
-      <div className="p-3 rounded-xl bg-sky-500/10 border border-sky-500/20 text-[10px] text-sky-600 dark:text-sky-400 font-mono">
-        يمكنك الآن رفع ملف CV مباشرة هنا!
-      </div>
-      <button type="submit" className="self-start px-4 py-2 rounded-xl bg-sky-500 text-white hover:bg-sky-400 transition-colors">
-        Save Settings
+
+      {settings.cvUrl && (
+        <div className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">
+          📎 Current CV: <a href={settings.cvUrl} target="_blank" rel="noreferrer" className="text-sky-500 hover:underline">View</a>
+          {settings.cvUpdatedAt && <div>✏️ Last updated: {new Date(settings.cvUpdatedAt).toLocaleDateString()}</div>}
+        </div>
+      )}
+
+      <button type="submit" className="w-full px-4 py-3 rounded-lg bg-gradient-to-r from-indigo-500 to-indigo-600 text-white hover:from-indigo-400 hover:to-indigo-500 transition-all font-semibold text-sm">
+        {cvFile ? "📤 Upload New CV" : "⚙️ Manage Settings"}
       </button>
     </form>
   </div>

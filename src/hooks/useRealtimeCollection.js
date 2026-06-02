@@ -25,15 +25,28 @@ export function useRealtimeCollection(collectionName, queryKey, mapAndSort, onEr
 
       fetchInitialData();
 
-      // 2. Realtime subscription
+      // 2. Realtime subscription with incremental updates
       const channel = supabase
         .channel(`public:${collectionName}`)
         .on(
           'postgres_changes',
           { event: '*', schema: 'public', table: collectionName },
-          () => {
-            // Re-fetch on any change to ensure consistency
-            fetchInitialData();
+          (payload) => {
+            // Incremental update instead of full refetch
+            const currentData = queryClient.getQueryData(queryKey) || [];
+            let updatedData = [...currentData];
+
+            if (payload.eventType === 'INSERT') {
+              updatedData = [...updatedData, payload.new];
+            } else if (payload.eventType === 'UPDATE') {
+              updatedData = updatedData.map((item) =>
+                item.id === payload.new.id ? payload.new : item
+              );
+            } else if (payload.eventType === 'DELETE') {
+              updatedData = updatedData.filter((item) => item.id !== payload.old.id);
+            }
+
+            queryClient.setQueryData(queryKey, mapAndSort ? mapAndSort(updatedData) : updatedData);
           }
         )
         .subscribe();
