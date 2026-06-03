@@ -51,7 +51,7 @@ export default function Hero() {
 
           {/* Social Links */}
           <div className="flex gap-4 mt-6">
-            <a href="https://www.linkedin.com/in/mohamed-esam-khodary-84647a27b/" target="_blank" rel="noreferrer" className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 text-slate-700 dark:text-slate-300 hover:text-sky-500 dark:hover:text-sky-400 hover:border-sky-500/50 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300" aria-label="LinkedIn">
+            <a href="https://www.linkedin.com/in/mohamed-e-khodary-650b08412/" target="_blank" rel="noreferrer" className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 text-slate-700 dark:text-slate-300 hover:text-sky-500 dark:hover:text-sky-400 hover:border-sky-500/50 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300" aria-label="LinkedIn">
               <FaLinkedin size={20} />
             </a>
             <a href="https://github.com/mohamedesam204" target="_blank" rel="noreferrer" className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 text-slate-700 dark:text-slate-300 hover:text-sky-500 dark:hover:text-sky-400 hover:border-sky-500/50 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300" aria-label="GitHub">
